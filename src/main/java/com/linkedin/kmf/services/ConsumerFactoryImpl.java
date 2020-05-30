@@ -14,7 +14,6 @@ import com.linkedin.kmf.consumer.KMBaseConsumer;
 import com.linkedin.kmf.consumer.KMBaseConsumerFactory;
 import com.linkedin.kmf.services.configs.ConsumeServiceConfig;
 import java.util.Map;
-import java.util.Properties;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,22 +21,30 @@ import org.slf4j.LoggerFactory;
 
 public class ConsumerFactoryImpl implements ConsumerFactory {
   private final KMBaseConsumer _baseConsumer;
-  private String _topic;
-  private int _latencyPercentileMaxMs;
-  private int _latencyPercentileGranularityMs;
-  private int _latencySlaMs;
+  private final String _topic;
+  private final int _latencyPercentileMaxMs;
+  private final int _latencyPercentileGranularityMs;
+  private final int _latencySlaMs;
   private static AdminClient adminClient;
   private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerFactoryImpl.class);
 
-  @SuppressWarnings("rawtypes")
   public ConsumerFactoryImpl(Map<String, Object> props) throws Exception {
     LOGGER.info("{} constructor starting..", this.getClass().getName());
     ConsumeServiceConfig config = new ConsumeServiceConfig(props);
+
+    adminClient = AdminClient.create(props);
+    _topic = config.getString(ConsumeServiceConfig.TOPIC_CONFIG);
+    _latencySlaMs = config.getInt(ConsumeServiceConfig.LATENCY_SLA_MS_CONFIG);
+    _latencyPercentileMaxMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_MAX_MS_CONFIG);
+    _latencyPercentileGranularityMs = config.getInt(ConsumeServiceConfig.LATENCY_PERCENTILE_GRANULARITY_MS_CONFIG);
+
     String consumerClassName = config.getString(ConsumeServiceConfig.CONSUMER_CLASS_CONFIG);
     String consumerFactoryImpl = consumerClassName + "KMBaseConsumerFactoryImpl";
-    KMBaseConsumerFactory baseConsumerFactory =
-        (KMBaseConsumerFactory) Class.forName(consumerFactoryImpl).getConstructor(Properties.class).newInstance(props);
-    _baseConsumer = baseConsumerFactory.create();
+    KMBaseConsumerFactory kmBaseConsumerFactory = (KMBaseConsumerFactory) Class.forName(consumerFactoryImpl)
+        .getConstructor(Map.class)
+        .newInstance(props);
+
+    _baseConsumer = kmBaseConsumerFactory.create();
   }
 
   @Override
@@ -70,3 +77,5 @@ public class ConsumerFactoryImpl implements ConsumerFactory {
     return _latencyPercentileGranularityMs;
   }
 }
+
+
